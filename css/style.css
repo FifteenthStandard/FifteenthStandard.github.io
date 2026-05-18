@@ -49,6 +49,15 @@
     padding-inline: 1ch;
   }
 
+  header {
+    nav {
+      ul {
+        font-size: 0.8em;
+        gap: 1.5ch;
+      }
+    }
+  }
+
   main {
     header {
       border-width: 2px 0px 0px 0px;
