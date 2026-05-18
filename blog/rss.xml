@@ -5,7 +5,7 @@
     <link>https://fifteenthstandard.com/blog</link>
     <description>Fifteenth Standard Blog</description>
     <language>en-AU</language>
-    <lastBuildDate>Sat, 16 May 2026 12:00:00 +0000</lastBuildDate>
+    <lastBuildDate>Mon, 18 May 2026 12:00:00 +0000</lastBuildDate>
     <copyright>Fifteenth Standard</copyright>
     <managingEditor>curtis@fifteenthstandard.com (Curtis Lusmore)</managingEditor>
     <atom:link href="https://fifteenthstandard.com/blog/rss.xml" rel="self" type="application/rss+xml" />
@@ -14,6 +14,35 @@
       <title>Fifteenth Standard Blog</title>
       <link>https://fifteenthstandard.com/blog</link>
     </image>
+    <item>
+      <title>The Fifteenth Standard Logo</title>
+      <link>https://fifteenthstandard.com/blog/logo</link>
+      <description><![CDATA[
+        <p>
+          That thing up in the top-left corner of the page is the Fifteenth Standard
+          logo. I designed it myself, and there are a couple of points about its
+          design that I figured I may as well explain here.
+        </p>
+        <p>
+          As I mentioned in <a href="/blog/philosophy.html" title="The Fifteenth Standard Philosophy">The Fifteenth Standard Philosophy</a>,
+          the projects that we build here are not intended to be best-in-class
+          products that will never be subsequently beaten. The shape of the logo
+          reflects this&mdash;it&rsquo;s a 4&times;4 grid of squares with the last
+          square missing, already implying a future Sixteenth Standard.
+        </p>
+        <p>
+          Hopefully also like the projects we build, the logo is simple, minimal, and
+          clean. It looks like something that anybody could have come up with, which
+          it is because I came up with it and I am not a graphic designer. The fact
+          that it can easily be expressed in a few dozen characters of SVG code
+          highlights the extent of my design skills as much as the simplicity of the
+          design.
+        </p>
+      ]]></description>
+      <author>curtis@fifteenthstandard.com (Curtis Lusmore)</author>
+      <pubDate>Mon, 18 May 2026 12:00:00 +0000</pubDate>
+      <guid>https://fifteenthstandard.com/blog/logo</guid>
+    </item>
     <item>
       <title>The Fifteenth Standard Philosophy</title>
       <link>https://fifteenthstandard.com/blog/philosophy</link>

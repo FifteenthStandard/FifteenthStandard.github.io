@@ -1,1 +1,2 @@
-philosophy,2026-05-17,draft
+logo,2026-05-18,published
+philosophy,2026-05-16,published
