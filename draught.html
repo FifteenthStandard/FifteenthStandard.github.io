@@ -7,13 +7,251 @@
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <title>Draught | Fifteenth Standard</title>
   <link rel="stylesheet" href="/css/style.css">
+  <style>
+    form {
+      width: 100%;
+    }
+    .group {
+      display: flex;
+      gap: 21px;
+      margin-block: 0.5em;
+    }
+    button, input, select, textarea {
+      font-size: 0.8em;
+    }
+    button, input {
+      font-family: var(--font-body);
+    }
+    input, select {
+      width: 180px;
+      box-sizing: border-box;
+    }
+    textarea {
+      font-family: var(--font-code);
+      resize: vertical;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline-color: var(--accent);
+      outline-width: 2px;
+    }
+  </style>
   <script>
-    window.addEventListener('load', function () {
-      const popup = window.open('', 'editor');
-      if (!popup || popup.location.href === 'about:blank') {
-        window.open('../editor', 'editor', 'popup=true');
+    let directoryHandle;
+    let template;
+    let index;
+    let previewWindow;
+
+    async function handleDirectoryChange() {
+      directoryHandle = await window.showDirectoryPicker({
+        id: 'draught',
+        mode: 'readwrite',
+      });
+
+      await loadIndex();
+      await loadTemplate();
+
+      document.getElementById('new').disabled = false;
+
+      async function loadTemplate() {
+        const handle = await directoryHandle.getFileHandle('template.html');
+        const file = await handle.getFile();
+        template = await file.text();
+      };
+    };
+
+    async function handleFileChange(event) {
+      const path = event.target.value;
+      await loadPost(path);
+    };
+
+    function handleNewPostClicked() {
+      const dialog = document.getElementById('new-post');
+      dialog.showModal();
+    };
+
+    async function handleCreateNewPostClicked(event) {
+      const path = document.getElementById('new-post-path').value.trim();
+      if (!path) return;
+
+      if (index.has(path)) {
+        alert('A post with this path already exists. Please choose a different path.');
+        return;
       }
-    });
+
+      const date = new Date().toISOString().substring(0, 10);
+      const markdown = `# ${path}\n\nWrite your post here...\n`;
+
+      await savePost({ path, markdown, date });
+
+      index = new Map([[ path, { path, date, status: 'draft' }], ...index]);
+      await saveIndex();
+
+      document.getElementById('file-list').value = path;
+      await loadPost(path);
+    };
+
+    async function handleSaveClicked() {
+      const path = document.getElementById('file-list').value;
+      const date = document.getElementById('date').value;
+      const markdown = document.getElementById('editor').value;
+      await savePost({ path, markdown, date });
+    };
+
+    async function handlePublishClicked() {
+      const path = document.getElementById('file-list').value;
+      const date = document.getElementById('date').value;
+      const post = index.get(path);
+      post.date = date;
+      post.status = 'published';
+      await saveIndex();
+      // TODO: update index.html
+    };
+
+    function handlePreviewClicked() {
+      previewWindow = window.open('', 'preview', 'popup=true,width=1150,height=800');
+      setViewContent();
+    };
+
+    function handleEditorInput(event) {
+      document.getElementById('save').disabled = false;
+      setViewContent();
+    };
+
+    function generateHtml(markdown, date) {
+      let [ _, title, body ] = markdown.match(/# (.+?)(?:[\r\n]+)(.+)/s);
+
+      date = new Date(date);
+      const isoDate = date.toISOString().substring(0, 10);
+      const displayDate = date.toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' });
+      const content = markdownToHtml(body);
+      const html = template
+        .replaceAll('{title}', title)
+        .replaceAll('{isoDate}', isoDate)
+        .replaceAll('{displayDate}', displayDate)
+        .replaceAll('{content}', content);
+      return html;
+    };
+
+    async function loadIndex() {
+      const handle = await directoryHandle.getFileHandle('index.txt', { create: true });
+      const file = await handle.getFile();
+      const text = await file.text();
+
+      index = new Map();
+      for (const line of text.split('\n')) {
+        if (line.trim() === '') continue;
+        const [ path, date, status ] = line.split(',');
+        index.set(path, { path, date, status });
+      }
+
+      updateIndex();
+    };
+
+    async function loadPost(path) {
+      const fileHandle = await directoryHandle.getFileHandle(`${path}.md`);
+      const file = await fileHandle.getFile();
+      const text = await file.text();
+
+      const date = document.getElementById('date');
+      date.value = index.get(path).date;
+      date.disabled = false;
+
+      const editor = document.getElementById('editor');
+      editor.disabled = false;
+      editor.value = text;
+      editor.focus();
+
+      setViewContent();
+    };
+
+    function markdownToHtml(markdown) {
+      const blocks = markdown.split(/\r\n\r\n|\n\n/);
+      return blocks.map(block => markdownBlockToHtml(block)).join('\n');
+
+      function markdownBlockToHtml(block) {
+        if (!block) return '';
+        if (block.startsWith('# ')) {
+          return `<h1>${block.substring(2).trim()}</h1>`;
+        }
+        if (block.startsWith('## ')) {
+          return `<h2>${block.substring(3).trim()}</h2>`;
+        }
+        if (block.startsWith('- ')) {
+          const items = block.split('\n').map(line => line.replace(/^- /, '').trim());
+          return `<ul>${items.map(item => `<li>${markdownInlineToHtml(item)}</li>`).join('')}</ul>`;
+        }
+        if (block.startsWith('1. ')) {
+          const items = block.split('\n').map(line => line.replace(/^\d+\. /, '').trim());
+          return `<ol>${items.map(item => `<li>${markdownInlineToHtml(item)}</li>`).join('')}</ol>`;
+        }
+        if (block.startsWith('> ')) {
+          const lines = block.split('\n').map(line => line.replace(/^> /, '').trim());
+          return `<blockquote>${lines.map(line => markdownInlineToHtml(line)).join('<br>')}</blockquote>`;
+        }
+        if (block.startsWith('```')) {
+          const code = block.split('\n').slice(1, -1).join('\n');
+          return `<pre><code>${code}</code></pre>`;
+        }
+        return `<p>${markdownInlineToHtml(block)}</p>`;
+      };
+
+      function markdownInlineToHtml(inline) {
+        return inline
+          .replace(/\*\*(.*)\*\*/gim, '<b>$1</b>')
+          .replace(/\*(.*)\*/gim, '<i>$1</i>')
+          .replace(/~~(.*)~~/gim, '<s>$1</s>')
+          .replace(/\[(.*?)\]\(([^ ]*?) \"(.*?)\"\)/gim, '<a href="$2" title="$3">$1</a>')
+          .replace(/\[(.*?)\]\(([^ ]*?)\)/gim, '<a href="$2">$1</a>')
+          .replace(/`(.*?)`/gim, '<code>$1</code>');
+      }
+    };
+
+    async function saveIndex() {
+      const handle = await directoryHandle.getFileHandle('index.txt', { create: true });
+      const writable = await handle.createWritable();
+      const text = Array.from(index.values()).map(({ path, date, status }) => `${path},${date},${status}`).join('\n');
+      await writable.write(text);
+      await writable.close();
+
+      updateIndex();
+    };
+
+    async function savePost({ path, markdown, date }) {
+      await updateFile(`${path}.md`, markdown);
+      await updateFile(`${path}.html`, generateHtml(markdown, date));
+
+      async function updateFile(path, content) {
+        const handle = await directoryHandle.getFileHandle(path, { create: true });
+        const writable = await handle.createWritable();
+        await writable.write(content);
+        await writable.close();
+      }
+
+      document.getElementById('save').disabled = true;
+    };
+
+    function setViewContent() {
+      const markdown = document.getElementById('editor').value;
+      const date = document.getElementById('date').value;
+
+      const html = generateHtml(markdown, date);
+      if (previewWindow) {
+        previewWindow.document.body.innerHTML = html;
+      }
+    };
+
+    function updateIndex() {
+      const fileList = document.getElementById('file-list');
+      fileList.innerHTML = '<option value="" disabled selected>Select a file</option>';
+  
+      for (const { path, date, status } of index.values()) {
+        const opt = document.createElement('option');
+        opt.value = path;
+        opt.textContent = path;
+        fileList.appendChild(opt);
+      }
+    }
   </script>
 </head>
 
@@ -40,21 +278,77 @@
   <h1>Draught</h1>
 </header>
 <section>
-  <h2>2026-05-16</h2>
-  <p>
-    I&rsquo;m working on getting this site up and running. The automatically
-    generated copyright in the LICENSE file suggests I started this in 2022,
-    and I&rsquo;ve been working on some projects since then without a serious,
-    coherent plan, but I&rsquo;ve decided now to make a concerted effort to
-    make something valuable and write about it as I go.
-  </p>
-  <p>
-    Aside from this site, the project getting most of my attention right now is
-    A5. For my entire career I&rsquo;ve been more of a backend developer, so
-    building an application that not only doesn&rsquo;t have a backend at all,
-    but whose central thesis is its unique user experience, has been a really
-    fun challenge.
-  </p>
+  <form width="80ch">
+    <div class="group">
+      <input
+        type="button"
+        value="Select Directory"
+        onclick="handleDirectoryChange()"
+      >
+      <select
+        id="file-list"
+        onchange="handleFileChange(event)"
+      >
+        <option value="" disabled selected>Select a directory</option>
+      </select>
+      <input
+        id="date"
+        type="date"
+        disabled
+      >
+      <input
+        id="new"
+        type="button"
+        value="New post"
+        onclick="handleNewPostClicked()"
+        disabled
+      >
+    </div>
+    <div class="group">
+      <input
+        id="save"
+        type="button"
+        value="Save changes"
+        onclick="handleSaveClicked()"
+        disabled
+      >
+      <input
+        id="publish"
+        type="button"
+        value="Publish"
+        onclick="handlePublishClicked()"
+        disabled
+      >
+      <input
+        id="preview"
+        type="button"
+        value="Open Preview"
+        onclick="handlePreviewClicked()"
+      >
+    </div>
+    <textarea
+      id="editor"
+      rows="20" cols="80"
+      oninput="handleEditorInput(event)"
+      disabled
+    ></textarea>
+  </form>
+  <dialog id="new-post">
+    <form method="dialog">
+      <p>Create a new post</p>
+      <input
+        id="new-post-path"
+        type="text"
+        placeholder="post-path"
+        title="URL slug (lowercase letters, numbers, and hyphens only)"
+        pattern="[a-z0-9\-]+"
+        required>
+      <menu>
+        <button value="cancel" formnovalidate>Cancel</button>
+        <button value="confirm" onclick="handleCreateNewPostClicked()">Create</button>
+      </menu>
+    </form>
+  </dialog>
 </section>
 </article>
 </main>

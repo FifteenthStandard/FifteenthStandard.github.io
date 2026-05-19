@@ -4,7 +4,7 @@ That thing up in the top-left corner of the page is the Fifteenth Standard
 logo. I designed it myself, and there are a couple of points about its design
 that I figured I may as well explain here.
 
-As I mentioned in [The Fifteenth Standard Philosophy](/blog/philosophy "The Fifteenth Standard Philosphy"),
+As I mentioned in [The Fifteenth Standard Philosophy](/blog/philosophy "The Fifteenth Standard Philosophy"),
 the projects that we build here are not intended to be best-in-class products
 that will never be subsequently beaten. The shape of the logo reflects
 this&mdash;it&rsquo;s a 4&times;4 grid of squares with the last square missing,
