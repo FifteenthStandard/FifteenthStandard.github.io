@@ -13,7 +13,7 @@
     }
     .group {
       display: flex;
-      gap: 21px;
+      gap: 15px;
       margin-block: 0.5em;
     }
     button, input, select, textarea {
@@ -27,13 +27,21 @@
       box-sizing: border-box;
     }
     textarea {
+      border: inherit;
+      outline: inherit;
+
+      background-color: var(--grey);
+      border-radius: 5px;
       font-family: var(--font-code);
-      resize: vertical;
+      min-height: 20lh;
+      overflow: hidden;
+      padding-inline: 5px;
+      resize: none;
+      width: 79ch;
     }
 
-    input:focus, select:focus, textarea:focus {
-      outline-color: var(--accent);
-      outline-width: 2px;
+    input.active {
+      outline: 2px solid var(--accent);
     }
   </style>
   <script>
@@ -41,6 +49,37 @@
     let template;
     let index;
     let previewWindow;
+    let dirty = false;
+    let autosave = false;
+    let currentPath;
+    let db;
+
+    window.addEventListener('load', async () => {
+      if ('indexedDB' in window) {
+        db = await new Promise((resolve, reject) => {
+          const request = indexedDB.open('draught', 1);
+          request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            db.createObjectStore('state');
+          };
+          request.onsuccess = (event) => resolve(event.target.result);
+          request.onerror = (event) => reject(event.target.error);
+        });
+        const tx = db.transaction('state', 'readonly');
+        const store = tx.objectStore('state');
+        const request = store.get('state');
+        request.onsuccess = async (event) => {
+          const { handle, path } = event.target.result;
+          if (handle) {
+            directoryHandle = handle;
+            await loadDirectory();
+          }
+          if (handle && path) {
+            await loadPost(path);
+          }
+        };
+      }
+    });
 
     async function handleDirectoryChange() {
       directoryHandle = await window.showDirectoryPicker({
@@ -48,30 +87,30 @@
         mode: 'readwrite',
       });
 
-      await loadIndex();
-      await loadTemplate();
+      await loadDirectory();
 
-      document.getElementById('new').disabled = false;
-
-      async function loadTemplate() {
-        const handle = await directoryHandle.getFileHandle('template.html');
-        const file = await handle.getFile();
-        template = await file.text();
-      };
+      if (db) {
+        const tx = db.transaction('state', 'readwrite');
+        const store = tx.objectStore('state');
+        await store.put({ handle: directoryHandle, path: currentPath }, 'state');
+        await tx.complete;
+      }
     };
 
     async function handleFileChange(event) {
+      if (dirty) {
+        const confirmLeave = confirm('You have unsaved changes. Do you want to discard them and load a different post?');
+        if (!confirmLeave) {
+          document.getElementById('file-list').value = currentPath;
+          return;
+        }
+      }
       const path = event.target.value;
       await loadPost(path);
     };
 
-    function handleNewPostClicked() {
-      const dialog = document.getElementById('new-post');
-      dialog.showModal();
-    };
-
-    async function handleCreateNewPostClicked(event) {
-      const path = document.getElementById('new-post-path').value.trim();
+    async function handleNewPostClicked() {
+      const path = prompt('Enter the new post path (e.g. my-new-post)');
       if (!path) return;
 
       if (index.has(path)) {
@@ -98,6 +137,17 @@
       await savePost({ path, markdown, date });
     };
 
+    async function handleAutosaveClicked() {
+      autosave = !autosave;
+      const button = document.getElementById('autosave');
+      button.classList.toggle('active');
+      button.value = autosave ? 'Autosave on' : 'Autosave off';
+      const path = document.getElementById('file-list').value;
+      const date = document.getElementById('date').value;
+      const markdown = document.getElementById('editor').value;
+      await savePost({ path, markdown, date });
+    };
+
     async function handlePublishClicked() {
       const path = document.getElementById('file-list').value;
       const date = document.getElementById('date').value;
@@ -105,6 +155,8 @@
       post.date = date;
       post.status = 'published';
       await saveIndex();
+      document.getElementById('file-list').value = path;
+      document.getElementById('publish').disabled = true;
       // TODO: update index.html
     };
 
@@ -114,9 +166,101 @@
     };
 
     function handleEditorInput(event) {
+      dirty = true;
+      document.getElementById('publish').disabled = true;
       document.getElementById('save').disabled = false;
+
+      const textarea = event.target;
+      textarea.style.height = 'auto';
+      textarea.style.height = textarea.scrollHeight + 'px';
+
+      if (autosave) handleSaveClicked();
       setViewContent();
     };
+
+    function handleEditorKeyDown(event) {
+      if (event.key === 's' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        handleSaveClicked();
+      }
+
+      const textarea = event.target;
+      const prev = textarea.value.substring(0, textarea.selectionStart);
+
+      if (event.key === 'i' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        if (textarea.selectionStart !== textarea.selectionEnd) {
+          document.execCommand('insertText', false, `*${textarea.value.substring(textarea.selectionStart, textarea.selectionEnd)}*`);
+          textarea.setSelectionRange(textarea.selectionEnd - 1, textarea.selectionEnd - 1);
+        } else {
+          document.execCommand('insertText', false, '**');
+          textarea.setSelectionRange(textarea.selectionStart - 1, textarea.selectionStart - 1);
+        }
+      }
+
+      if (event.key === 'b' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        if (textarea.selectionStart !== textarea.selectionEnd) {
+          document.execCommand('insertText', false, `**${textarea.value.substring(textarea.selectionStart, textarea.selectionEnd)}**`);
+          textarea.setSelectionRange(textarea.selectionEnd - 2, textarea.selectionEnd - 2);
+        } else {
+          document.execCommand('insertText', false, '****');
+          textarea.setSelectionRange(textarea.selectionStart - 2, textarea.selectionStart - 2);
+        }
+      }
+
+      if (event.key === 'k' && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        const url = prompt('Enter the URL');
+        if (url) {
+          if (textarea.selectionStart !== textarea.selectionEnd) {
+            document.execCommand('insertText', false, `[${textarea.value.substring(textarea.selectionStart, textarea.selectionEnd)}](${url})`);
+            textarea.setSelectionRange(textarea.selectionEnd - 1, textarea.selectionEnd - 1);
+          } else {
+            document.execCommand('insertText', false, `[](${url})`);
+            textarea.setSelectionRange(textarea.selectionStart - url.length - 3, textarea.selectionStart - url.length - 3);
+          }
+        }
+      }
+
+      if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+      switch (event.key) {
+        case "'":
+          event.preventDefault();
+          insert(!prev || /\s$/.test(prev) ? '&lsquo;' : '&rsquo;');
+          break;
+        case '"':
+          event.preventDefault();
+          insert(!prev || /\s$/.test(prev) ? '&ldquo;' : '&rdquo;');
+          break;
+        case '-':
+          if (prev.endsWith('&ndash;')) {
+            event.preventDefault();
+            replaceBack(7, '&mdash;');
+          } else if (prev.endsWith('-')) {
+            event.preventDefault();
+            replaceBack(1, '&ndash;');
+          }
+          break;
+      }
+
+      function insert(text) {
+        document.execCommand('insertText', false, text);
+      }
+
+      function replaceBack(count, text) {
+        textarea.setSelectionRange(textarea.selectionStart - count, textarea.selectionStart);
+        document.execCommand('insertText', false, text);
+      }
+    };
+
+    window.addEventListener('beforeunload', (event) => {
+      if (dirty) {
+        event.preventDefault();
+        event.returnValue = '';
+      }
+    });
 
     function generateHtml(markdown, date) {
       let [ _, title, body ] = markdown.match(/# (.+?)(?:[\r\n]+)(.+)/s);
@@ -133,13 +277,26 @@
       return html;
     };
 
+    async function loadDirectory() {
+      await loadIndex();
+      await loadTemplate();
+
+      document.getElementById('new').disabled = false;
+
+      async function loadTemplate() {
+        const handle = await directoryHandle.getFileHandle('template.html');
+        const file = await handle.getFile();
+        template = await file.text();
+      };
+    };
+
     async function loadIndex() {
       const handle = await directoryHandle.getFileHandle('index.txt', { create: true });
       const file = await handle.getFile();
       const text = await file.text();
 
       index = new Map();
-      for (const line of text.split('\n')) {
+      for (const line of text.split(/\r\n|\n/)) {
         if (line.trim() === '') continue;
         const [ path, date, status ] = line.split(',');
         index.set(path, { path, date, status });
@@ -149,6 +306,8 @@
     };
 
     async function loadPost(path) {
+      document.getElementById('file-list').value = path;
+
       const fileHandle = await directoryHandle.getFileHandle(`${path}.md`);
       const file = await fileHandle.getFile();
       const text = await file.text();
@@ -160,9 +319,24 @@
       const editor = document.getElementById('editor');
       editor.disabled = false;
       editor.value = text;
+      editor.style.height = 'auto';
+      editor.style.height = editor.scrollHeight + 'px';
       editor.focus();
 
+      document.getElementById('publish').disabled = index.get(path).status === 'published';
+      document.getElementById('save').disabled = true;
+      document.getElementById('autosave').disabled = false;
+
       setViewContent();
+      dirty = false;
+      currentPath = path;
+
+      if (db) {
+        const tx = db.transaction('state', 'readwrite');
+        const store = tx.objectStore('state');
+        await store.put({ handle: directoryHandle, path: currentPath }, 'state');
+        await tx.complete;
+      }
     };
 
     function markdownToHtml(markdown) {
@@ -177,8 +351,8 @@
         if (block.startsWith('## ')) {
           return `<h2>${block.substring(3).trim()}</h2>`;
         }
-        if (block.startsWith('- ')) {
-          const items = block.split('\n').map(line => line.replace(/^- /, '').trim());
+        if (block.startsWith('- ') || block.startsWith('* ')) {
+          const items = block.split('\n').map(line => line.replace(/^[-*] /, '').trim());
           return `<ul>${items.map(item => `<li>${markdownInlineToHtml(item)}</li>`).join('')}</ul>`;
         }
         if (block.startsWith('1. ')) {
@@ -228,7 +402,9 @@
         await writable.close();
       }
 
+      document.getElementById('publish').disabled = index.get(path).status === 'published';
       document.getElementById('save').disabled = true;
+      dirty = false;
     };
 
     function setViewContent() {
@@ -278,7 +454,7 @@
   <h1>Draught</h1>
 </header>
 <section>
-  <form width="80ch">
+  <form>
     <div class="group">
       <input
         type="button"
@@ -313,6 +489,13 @@
         disabled
       >
       <input
+        id="autosave"
+        type="button"
+        value="Autosave off"
+        onclick="handleAutosaveClicked()"
+        disabled
+      >
+      <input
         id="publish"
         type="button"
         value="Publish"
@@ -328,27 +511,12 @@
     </div>
     <textarea
       id="editor"
-      rows="20" cols="80"
+      rows="20"
       oninput="handleEditorInput(event)"
+      onkeydown="handleEditorKeyDown(event)"
       disabled
     ></textarea>
   </form>
-  <dialog id="new-post">
-    <form method="dialog">
-      <p>Create a new post</p>
-      <input
-        id="new-post-path"
-        type="text"
-        placeholder="post-path"
-        title="URL slug (lowercase letters, numbers, and hyphens only)"
-        pattern="[a-z0-9\-]+"
-        required>
-      <menu>
-        <button value="cancel" formnovalidate>Cancel</button>
-        <button value="confirm" onclick="handleCreateNewPostClicked()">Create</button>
-      </menu>
-    </form>
-  </dialog>
 </section>
 </article>
 </main>
