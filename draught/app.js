@@ -1,0 +1,383 @@
+let directoryHandle;
+let template;
+let index;
+let previewWindow;
+let dirty = false;
+let autosave = false;
+let currentPath;
+let db;
+
+window.addEventListener('load', async () => {
+  if ('indexedDB' in window) {
+    db = await new Promise((resolve, reject) => {
+      const request = indexedDB.open('draught', 1);
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+        db.createObjectStore('state');
+      };
+      request.onsuccess = (event) => resolve(event.target.result);
+      request.onerror = (event) => reject(event.target.error);
+    });
+    const tx = db.transaction('state', 'readonly');
+    const store = tx.objectStore('state');
+    const request = store.get('state');
+    request.onsuccess = async (event) => {
+      const { handle, path } = event.target.result;
+      if (handle) {
+        directoryHandle = handle;
+        await loadDirectory();
+      }
+      if (handle && path) {
+        await loadPost(path);
+      }
+    };
+  }
+});
+
+async function handleDirectoryChange() {
+  directoryHandle = await window.showDirectoryPicker({
+    id: 'draught',
+    mode: 'readwrite',
+  });
+
+  await loadDirectory();
+
+  if (db) {
+    const tx = db.transaction('state', 'readwrite');
+    const store = tx.objectStore('state');
+    await store.put({ handle: directoryHandle, path: currentPath }, 'state');
+    await tx.complete;
+  }
+};
+
+async function handleFileChange(event) {
+  if (dirty) {
+    const confirmLeave = confirm('You have unsaved changes. Do you want to discard them and load a different post?');
+    if (!confirmLeave) {
+      document.getElementById('file-list').value = currentPath;
+      return;
+    }
+  }
+  const path = event.target.value;
+  await loadPost(path);
+};
+
+async function handleNewPostClicked() {
+  const path = prompt('Enter the new post path (e.g. my-new-post)');
+  if (!path) return;
+
+  if (index.has(path)) {
+    alert('A post with this path already exists. Please choose a different path.');
+    return;
+  }
+
+  const date = new Date().toISOString().substring(0, 10);
+  const markdown = `# ${path}\n\nWrite your post here...\n`;
+
+  await savePost({ path, markdown, date });
+
+  index = new Map([[ path, { path, date, status: 'draft' }], ...index]);
+  await saveIndex();
+
+  document.getElementById('file-list').value = path;
+  await loadPost(path);
+};
+
+async function handleSaveClicked() {
+  const path = document.getElementById('file-list').value;
+  const date = document.getElementById('date').value;
+  const markdown = document.getElementById('editor').value;
+  await savePost({ path, markdown, date });
+};
+
+async function handleAutosaveClicked() {
+  autosave = !autosave;
+  const button = document.getElementById('autosave');
+  button.classList.toggle('active');
+  button.value = autosave ? 'Autosave on' : 'Autosave off';
+  const path = document.getElementById('file-list').value;
+  const date = document.getElementById('date').value;
+  const markdown = document.getElementById('editor').value;
+  await savePost({ path, markdown, date });
+};
+
+async function handlePublishClicked() {
+  const path = document.getElementById('file-list').value;
+  const date = document.getElementById('date').value;
+  const post = index.get(path);
+  post.date = date;
+  post.status = 'published';
+  await saveIndex();
+  document.getElementById('file-list').value = path;
+  document.getElementById('publish').disabled = true;
+  // TODO: update index.html
+};
+
+function handlePreviewClicked() {
+  previewWindow = window.open('', 'preview', 'popup=true,width=1150,height=800');
+  setViewContent();
+};
+
+function handleEditorInput(event) {
+  dirty = true;
+  document.getElementById('publish').disabled = true;
+  document.getElementById('save').disabled = false;
+
+  const textarea = event.target;
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+
+  if (autosave) handleSaveClicked();
+  setViewContent();
+};
+
+function handleEditorKeyDown(event) {
+  if (event.key === 's' && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    handleSaveClicked();
+  }
+
+  const textarea = event.target;
+  const prev = textarea.value.substring(0, textarea.selectionStart);
+
+  if (event.key === 'i' && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    if (textarea.selectionStart !== textarea.selectionEnd) {
+      document.execCommand('insertText', false, `*${textarea.value.substring(textarea.selectionStart, textarea.selectionEnd)}*`);
+      textarea.setSelectionRange(textarea.selectionEnd - 1, textarea.selectionEnd - 1);
+    } else {
+      document.execCommand('insertText', false, '**');
+      textarea.setSelectionRange(textarea.selectionStart - 1, textarea.selectionStart - 1);
+    }
+  }
+
+  if (event.key === 'b' && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    if (textarea.selectionStart !== textarea.selectionEnd) {
+      document.execCommand('insertText', false, `**${textarea.value.substring(textarea.selectionStart, textarea.selectionEnd)}**`);
+      textarea.setSelectionRange(textarea.selectionEnd - 2, textarea.selectionEnd - 2);
+    } else {
+      document.execCommand('insertText', false, '****');
+      textarea.setSelectionRange(textarea.selectionStart - 2, textarea.selectionStart - 2);
+    }
+  }
+
+  if (event.key === 'k' && (event.ctrlKey || event.metaKey)) {
+    event.preventDefault();
+    const url = prompt('Enter the URL');
+    if (url) {
+      if (textarea.selectionStart !== textarea.selectionEnd) {
+        document.execCommand('insertText', false, `[${textarea.value.substring(textarea.selectionStart, textarea.selectionEnd)}](${url})`);
+        textarea.setSelectionRange(textarea.selectionEnd - 1, textarea.selectionEnd - 1);
+      } else {
+        document.execCommand('insertText', false, `[](${url})`);
+        textarea.setSelectionRange(textarea.selectionStart - url.length - 3, textarea.selectionStart - url.length - 3);
+      }
+    }
+  }
+
+  if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+  switch (event.key) {
+    case "'":
+      event.preventDefault();
+      insert(!prev || /\s$/.test(prev) ? '&lsquo;' : '&rsquo;');
+      break;
+    case '"':
+      event.preventDefault();
+      insert(!prev || /\s$/.test(prev) ? '&ldquo;' : '&rdquo;');
+      break;
+    case '-':
+      if (prev.endsWith('&ndash;')) {
+        event.preventDefault();
+        replaceBack(7, '&mdash;');
+      } else if (prev.endsWith('-')) {
+        event.preventDefault();
+        replaceBack(1, '&ndash;');
+      }
+      break;
+  };
+
+  function insert(text) {
+    document.execCommand('insertText', false, text);
+  };
+
+  function replaceBack(count, text) {
+    textarea.setSelectionRange(textarea.selectionStart - count, textarea.selectionStart);
+    document.execCommand('insertText', false, text);
+  };
+};
+
+window.addEventListener('beforeunload', (event) => {
+  if (dirty) {
+    event.preventDefault();
+    event.returnValue = '';
+  }
+});
+
+function generateHtml(markdown, date) {
+  let [ _, title, body ] = markdown.match(/# (.+?)(?:[\r\n]+)(.+)/s);
+
+  date = new Date(date);
+  const isoDate = date.toISOString().substring(0, 10);
+  const displayDate = date.toLocaleDateString('en-AU', { year: 'numeric', month: 'long', day: 'numeric' });
+  const content = markdownToHtml(body);
+  const html = template
+    .replaceAll('{title}', title)
+    .replaceAll('{isoDate}', isoDate)
+    .replaceAll('{displayDate}', displayDate)
+    .replaceAll('{content}', content);
+  return html;
+};
+
+async function loadDirectory() {
+  await loadIndex();
+  await loadTemplate();
+
+  document.getElementById('new').disabled = false;
+
+  async function loadTemplate() {
+    const handle = await directoryHandle.getFileHandle('template.html');
+    const file = await handle.getFile();
+    template = await file.text();
+  };
+};
+
+async function loadIndex() {
+  const handle = await directoryHandle.getFileHandle('index.txt', { create: true });
+  const file = await handle.getFile();
+  const text = await file.text();
+
+  index = new Map();
+  for (const line of text.split(/\r\n|\n/)) {
+    if (line.trim() === '') continue;
+    const [ path, date, status ] = line.split(',');
+    index.set(path, { path, date, status });
+  }
+
+  updateIndex();
+};
+
+async function loadPost(path) {
+  document.getElementById('file-list').value = path;
+
+  const fileHandle = await directoryHandle.getFileHandle(`${path}.md`);
+  const file = await fileHandle.getFile();
+  const text = await file.text();
+
+  const date = document.getElementById('date');
+  date.value = index.get(path).date;
+  date.disabled = false;
+
+  const editor = document.getElementById('editor');
+  editor.disabled = false;
+  editor.value = text;
+  editor.style.height = 'auto';
+  editor.style.height = editor.scrollHeight + 'px';
+  editor.focus();
+
+  document.getElementById('publish').disabled = index.get(path).status === 'published';
+  document.getElementById('save').disabled = true;
+  document.getElementById('autosave').disabled = false;
+
+  setViewContent();
+  dirty = false;
+  currentPath = path;
+
+  if (db) {
+    const tx = db.transaction('state', 'readwrite');
+    const store = tx.objectStore('state');
+    await store.put({ handle: directoryHandle, path: currentPath }, 'state');
+    await tx.complete;
+  }
+};
+
+function markdownToHtml(markdown) {
+  const blocks = markdown.split(/\r\n\r\n|\n\n/);
+  return blocks.map(block => markdownBlockToHtml(block)).join('\n');
+
+  function markdownBlockToHtml(block) {
+    if (!block) return '';
+    if (block.startsWith('# ')) {
+      return `<h1>${block.substring(2).trim()}</h1>`;
+    }
+    if (block.startsWith('## ')) {
+      return `<h2>${block.substring(3).trim()}</h2>`;
+    }
+    if (block.startsWith('- ') || block.startsWith('* ')) {
+      const items = block.split('\n').map(line => line.replace(/^[-*] /, '').trim());
+      return `<ul>${items.map(item => `<li>${markdownInlineToHtml(item)}</li>`).join('')}</ul>`;
+    }
+    if (block.startsWith('1. ')) {
+      const items = block.split('\n').map(line => line.replace(/^\d+\. /, '').trim());
+      return `<ol>${items.map(item => `<li>${markdownInlineToHtml(item)}</li>`).join('')}</ol>`;
+    }
+    if (block.startsWith('> ')) {
+      const lines = block.split('\n').map(line => line.replace(/^> /, '').trim());
+      return `<blockquote>${lines.map(line => markdownInlineToHtml(line)).join('<br>')}</blockquote>`;
+    }
+    if (block.startsWith('```')) {
+      const code = block.split('\n').slice(1, -1).join('\n');
+      return `<pre><code>${code}</code></pre>`;
+    }
+    return `<p>${markdownInlineToHtml(block)}</p>`;
+  };
+
+  function markdownInlineToHtml(inline) {
+    return inline
+      .replace(/\*\*(.*)\*\*/gim, '<b>$1</b>')
+      .replace(/\*(.*)\*/gim, '<i>$1</i>')
+      .replace(/~~(.*)~~/gim, '<s>$1</s>')
+      .replace(/\[(.*?)\]\(([^ ]*?) \"(.*?)\"\)/gim, '<a href="$2" title="$3">$1</a>')
+      .replace(/\[(.*?)\]\(([^ ]*?)\)/gim, '<a href="$2">$1</a>')
+      .replace(/`(.*?)`/gim, '<code>$1</code>');
+  }
+};
+
+async function saveIndex() {
+  const handle = await directoryHandle.getFileHandle('index.txt', { create: true });
+  const writable = await handle.createWritable();
+  const text = Array.from(index.values()).map(({ path, date, status }) => `${path},${date},${status}`).join('\n');
+  await writable.write(text);
+  await writable.close();
+
+  updateIndex();
+};
+
+async function savePost({ path, markdown, date }) {
+  await updateFile(`${path}.md`, markdown);
+  await updateFile(`${path}.html`, generateHtml(markdown, date));
+
+  async function updateFile(path, content) {
+    const handle = await directoryHandle.getFileHandle(path, { create: true });
+    const writable = await handle.createWritable();
+    await writable.write(content);
+    await writable.close();
+  }
+
+  document.getElementById('publish').disabled = index.get(path).status === 'published';
+  document.getElementById('save').disabled = true;
+  dirty = false;
+};
+
+function setViewContent() {
+  const markdown = document.getElementById('editor').value;
+  const date = document.getElementById('date').value;
+
+  const html = generateHtml(markdown, date);
+  if (previewWindow) {
+    previewWindow.document.body.innerHTML = html;
+  }
+};
+
+function updateIndex() {
+  const fileList = document.getElementById('file-list');
+  fileList.innerHTML = '<option value="" disabled selected>Select a file</option>';
+
+  for (const { path, date, status } of index.values()) {
+    const opt = document.createElement('option');
+    opt.value = path;
+    opt.textContent = path;
+    fileList.appendChild(opt);
+  }
+};

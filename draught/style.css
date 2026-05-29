@@ -1,0 +1,40 @@
+form {
+  width: 100%;
+}
+
+.group {
+  display: flex;
+  gap: 15px;
+  margin-block: 0.5em;
+}
+
+button, input, select, textarea {
+  font-size: 0.8em;
+}
+
+button, input {
+  font-family: var(--font-body);
+}
+
+input, select {
+  box-sizing: border-box;
+  width: 180px;
+}
+
+textarea {
+  border: inherit;
+  outline: inherit;
+
+  background-color: var(--grey);
+  border-radius: 5px;
+  font-family: var(--font-code);
+  min-height: 20lh;
+  overflow: hidden;
+  padding-inline: 5px;
+  resize: none;
+  width: 79ch;
+}
+
+input.active {
+  outline: 2px solid var(--accent);
+}

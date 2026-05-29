@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en-AU">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="color-scheme" content="light dark">
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/draught/style.css">
+  <script src="/draught/app.js" defer></script>
+  <title>Draught | Fifteenth Standard</title>
+</head>
+<body>
+<header>
+  <nav>
+    <ul>
+      <li><a href="/" title="Home">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 4 4" height="32" width="32">
+          <path d="M0 0 L4 0 L4 3 L3 3 L3 4 L0 4 Z" fill="currentColor" />
+        </svg>
+      </a></li>
+      <li><a href="/blog" title="Blog">Blog</a></li>
+      <li><a href="/projects" title="Projects">Projects</a></li>
+      <li><a href="/plan" title="Plan">Plan</a></li>
+      <li><a href="/contact" title="Contact">Contact</a></li>
+    </ul>
+  </nav>
+</header>
+<main>
+<header>
+  <h1>Draught</h1>
+</header>
+<form>
+  <div class="group">
+    <input
+      type="button"
+      value="Select Directory"
+      onclick="handleDirectoryChange()"
+    >
+    <select
+      id="file-list"
+      onchange="handleFileChange(event)"
+    >
+      <option value="" disabled selected>Select a directory</option>
+    </select>
+    <input
+      id="date"
+      type="date"
+      disabled
+    >
+    <input
+      id="new"
+      type="button"
+      value="New post"
+      onclick="handleNewPostClicked()"
+      disabled
+    >
+  </div>
+  <div class="group">
+    <input
+      id="save"
+      type="button"
+      value="Save changes"
+      onclick="handleSaveClicked()"
+      disabled
+    >
+    <input
+      id="autosave"
+      type="button"
+      value="Autosave off"
+      onclick="handleAutosaveClicked()"
+      disabled
+    >
+    <input
+      id="publish"
+      type="button"
+      value="Publish"
+      onclick="handlePublishClicked()"
+      disabled
+    >
+    <input
+      id="preview"
+      type="button"
+      value="Open Preview"
+      onclick="handlePreviewClicked()"
+    >
+  </div>
+  <textarea
+    id="editor"
+    rows="20"
+    oninput="handleEditorInput(event)"
+    onkeydown="handleEditorKeyDown(event)"
+    disabled
+  ></textarea>
+</form>
+</main>
+</body>
+</html>

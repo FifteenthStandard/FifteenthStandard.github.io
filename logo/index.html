@@ -6,7 +6,9 @@
   <meta name="color-scheme" content="light dark">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="stylesheet" href="/css/style.css">
-  <title>{title} | Fifteenth Standard</title>
+  <link rel="stylesheet" href="/logo/style.css">
+  <script src="/logo/app.js" defer></script>
+  <title>Logo | Fifteenth Standard</title>
 </head>
 <body>
 <header>
@@ -25,13 +27,21 @@
   </nav>
 </header>
 <main>
-<article>
 <header>
-  <h1>{title}</h1>
-  <time datetime="{isoDate}">{displayDate}</time>
+  <h1>Logo</h1>
 </header>
-{content}
-</article>
+<canvas
+  id="logo-512"
+  width="512" height="512"
+  onmousedown="handleMouseDown(event)"
+  onmousemove="handleMouseMove(event)"
+  oncontextmenu="event.preventDefault()"
+></canvas>
+<div style="display: flex; align-items: top; gap: 2px;">
+  <canvas id="logo-192" width="192" height="192"></canvas>
+  <canvas id="logo-64" width="64" height="64"></canvas>
+  <canvas id="logo-32" width="32" height="32"></canvas>
+</div>
 </main>
 </body>
 </html>

@@ -18,26 +18,26 @@
       <title>The Fifteenth Standard Logo</title>
       <link>https://fifteenthstandard.com/blog/logo</link>
       <description><![CDATA[
-        <p>
-          That thing up in the top-left corner of the page is the Fifteenth Standard
-          logo. I designed it myself, and there are a couple of points about its
-          design that I figured I may as well explain here.
-        </p>
-        <p>
-          As I mentioned in <a href="/blog/philosophy.html" title="The Fifteenth Standard Philosophy">The Fifteenth Standard Philosophy</a>,
-          the projects that we build here are not intended to be best-in-class
-          products that will never be subsequently beaten. The shape of the logo
-          reflects this&mdash;it&rsquo;s a 4&times;4 grid of squares with the last
-          square missing, already implying a future Sixteenth Standard.
-        </p>
-        <p>
-          Hopefully also like the projects we build, the logo is simple, minimal, and
-          clean. It looks like something that anybody could have come up with, which
-          it is because I came up with it and I am not a graphic designer. The fact
-          that it can easily be expressed in a few dozen characters of SVG code
-          highlights the extent of my design skills as much as the simplicity of the
-          design.
-        </p>
+<p>
+  That thing up in the top-left corner of the page is the Fifteenth Standard
+  logo. I designed it myself, and there are a couple of points about its design
+  that I figured I may as well explain here.
+</p>
+<p>
+  As I mentioned in <a href="/blog/philosophy" title="The Fifteenth Standard Philosophy">The
+  Fifteenth Standard Philosophy</a>, the projects that we build here are not
+  intended to be best-in-class products that will never be subsequently beaten.
+  The shape of the logo reflects this&mdash;it&rsquo;s a 4&times;4 grid of
+  squares with the last square missing, already implying a future Sixteenth
+  Standard.
+</p>
+<p>
+  Hopefully also like the projects we build, the logo is simple, minimal, and
+  clean. It looks like something that anybody could have come up with, which it
+  is because I came up with it and I am not a graphic designer. The fact that
+  it can easily be expressed in a few dozen characters of SVG code highlights
+  the extent of my design skills as much as the simplicity of the design.
+</p>
       ]]></description>
       <author>curtis@fifteenthstandard.com (Curtis Lusmore)</author>
       <pubDate>Mon, 18 May 2026 12:00:00 +0000</pubDate>
@@ -47,32 +47,32 @@
       <title>The Fifteenth Standard Philosophy</title>
       <link>https://fifteenthstandard.com/blog/philosophy</link>
       <description><![CDATA[
-        <p>
-          I&rsquo;ve always enjoyed building things as a developer, not necessarily
-          for the end-product, but for the experience of building and the insights
-          this gives you into how things work. This often means that I end up
-          building things that already exist, some of which may seem outwardly to be
-          redundant and unnecessary, some of which may have my own unique twist or
-          perspective built into them, but hopefully all of which contain interesting
-          lessons in the journey of how they were built.
-        </p>
-        <p>
-          Fifteenth Standard is a place for me to share these projects as the
-          products that they are but also as the process that went into building
-          them. Inspired by the XKCD comic <a href="https://xkcd.com/927/" title="xkcd: Standards">Standards</a>,
-          Fifteenth Standard embraces the idea that there have been many versions of
-          these same ideas in the past that we learn from and build on, and that
-          there will be many more in the future that will do the same, but there is
-          still value in trying to build something ourselves.
-        </p>
-        <p>
-          The projects we build will all be open source, and the challenges and
-          learnings we encounter along the way will all be shared in this blog. Often
-          we will take the scenic route on our way, which might mean that we tend to
-          build our own tools rather than leaning on existing ones. While I hope
-          that our process and codebases will be informative to you, I don&rsquo;t
-          necessarily advocate for this approach as a best practice in all cases.
-        </p>
+<p>
+  I&rsquo;ve always enjoyed building things as a developer, not necessarily for
+  the end-product, but for the experience of building and the insights this
+  gives you into how things work. This often means that I end up building
+  things that already exist, some of which may seem outwardly to be redundant,
+  some of which may have my own unique twist or perspective built into them,
+  but hopefully all of which contain interesting lessons in the journey of how
+  they were built.
+</p>
+<p>
+  Fifteenth Standard is a place for me to share these projects as the products
+  that they are but also as the process that went into building them. Inspired
+  by the XKCD comic <a href="https://xkcd.com/927/" title="xkcd: Standards">Standards</a>,
+  Fifteenth Standard embraces the idea that there have been many versions of
+  these same ideas in the past that we learn from and build on, and that there
+  will be many more in the future that will do the same, but there is still
+  value in trying to build something ourselves.
+</p>
+<p>
+  The projects we build will all be open source, and the challenges and
+  learnings we encounter along the way will all be shared in this blog. Often
+  we will take the scenic route on our way, which might mean that we tend to
+  build our own tools rather than leaning on existing ones. While I hope that
+  our process and codebases will be informative to you, I don&rsquo;t
+  necessarily advocate for this approach as a best practice in all cases.
+</p>
       ]]></description>
       <author>curtis@fifteenthstandard.com (Curtis Lusmore)</author>
       <pubDate>Sat, 16 May 2026 12:00:00 +0000</pubDate>
